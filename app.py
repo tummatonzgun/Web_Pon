@@ -1356,6 +1356,11 @@ def clean_text(s):
 @app.route("/export_all_boms_excel", methods=['POST'])
 def export_all_boms_excel():
     try:
+        def clean_text(s):
+            if pd.isna(s):
+                return s
+            return str(s).replace('\r', '').replace('\n', '').replace('_x000D_', '').strip()
+
         def safe_first(series):
             return series.dropna().iloc[0] if not series.dropna().empty else ""
 
@@ -1368,11 +1373,6 @@ def export_all_boms_excel():
             df = pd.read_csv(file_path, encoding="utf-8-sig")
         else:
             df = pd.read_excel(file_path)
-
-        def clean_text(s):
-            if pd.isna(s):
-                return s
-            return str(s).replace('\r', '').replace('\n', '').replace('_x000D_', '').strip()
 
         df.columns = [c.strip() for c in df.columns]
         model_col = next((c for c in df.columns if c.lower().replace("_", " ") == "machine model"), None)
@@ -1399,7 +1399,7 @@ def export_all_boms_excel():
             df['Normalized Model'] = df[model_col].apply(clean_text)
             df.dropna(subset=['package_code', 'Normalized Model', 'UPH'], inplace=True)
 
-            grouped = df.groupby(['package_code', 'Normalized Model'])['UPH'].agg(['mean', 'std', 'count']).reset_index()
+            grouped = df.groupby(['package_code', 'Normalized Model'])['UPH'].agg(['mean']).reset_index()
             for _, row in grouped.iterrows():
                 assy_pack_val = "TUBE" if "NX-116" in row['Normalized Model'].upper() else "ไม่พบ packtype"
                 summary_pnp.append({
@@ -1450,6 +1450,13 @@ def export_all_boms_excel():
                 df_clean['Normalized Model'] = df_clean[model_col].apply(lambda x: 'WB3100' if 'WB3100' in x else x)
                 summary = df_clean.groupby('Normalized Model')['UPH'].agg(['mean']).reset_index()
 
+                count_before = len(df_bom)
+                count_after = len(df_clean)
+                if count_before < 15:
+                    no_outlier_removed = f"ไม่ตัด Outlier (ข้อมูลน้อย) — แถว: {count_before}"
+                else:
+                    no_outlier_removed = f"ตัด Outlier — ก่อน: {count_before} หลัง: {count_after}"
+
                 no_bump_val = safe_first(nobump_df[nobump_df['BOM_NO'] == bom]['NO_BUMP']) if file_type == 'WB' else 0
                 number_required_val = safe_first(nobump_df[nobump_df['BOM_NO'] == bom]['NUMBER_REQUIRED']) if file_type == 'WB' else 0
 
@@ -1474,7 +1481,7 @@ def export_all_boms_excel():
                         "Wire Per Hour": round(mean_uph, 2),
                         "wire_per_unit": round(UNIT, 2),
                         "UPH": eff_ratio,
-                        "no_outlier_removed": ""
+                        "no_outlier_removed": no_outlier_removed
                     }
 
                     if file_type == 'WB':
@@ -1664,7 +1671,7 @@ def frame_stock():
 
                     if deltas:
                         avg_sec = round(sum(deltas) / len(deltas), 4)
-                        df.at[sub_group[-1], 'Average'] = f"Average-Group = {avg_sec} time/strip"
+                        df.at[sub_group[-1], 'Average'] = f"Average-Group = {avg_sec} sec/strip"
                         df.at[sub_group[-1], 'Data Point'] = str(len(deltas))
                         all_deltas.extend(deltas)
 
@@ -1674,7 +1681,7 @@ def frame_stock():
             df['Average_Frame-Stock'] = ''
 
             avg_all_sec = df['sec'].dropna().mean().round(4)
-            df.at[0, 'Average_Frame-Stock'] = f"Average_All = {avg_all_sec} time/strip"
+            df.at[0, 'Average_Frame-Stock'] = f"Average_All = {avg_all_sec} sec/strip"
 
             def get_station_name(val):
                 if pd.isna(val):
@@ -1685,48 +1692,52 @@ def frame_stock():
                 return val_str.strip()
 
             df['__station__'] = df['Unnamed: 3'].apply(get_station_name)
-
-            # ✅ Map __station__ → ITEM_NO → PACKAGE_CODE
             df['PACKAGE_CODE'] = df['__station__'].map(lambda x: item_map.get(str(x).strip()) if pd.notna(x) else None)
 
-            valid_groups = df[
-               df['__station__'].notna() &
-               df['sec'].notna() &
-               df['SPEED'].notna() &
-               (df['SPEED'] != 0)
+            # ==== เพิ่มส่วนตัด Outlier และใส่ข้อความ ====
+            all_valid = df[
+                df['__station__'].notna() &
+                df['sec'].notna() &
+                df['SPEED'].notna() &
+                (df['SPEED'] != 0)
             ].copy()
 
+            valid_groups = all_valid.copy()
+            valid_groups['z_score'] = valid_groups.groupby(['__station__', 'SPEED'])['sec'].transform(lambda x: zscore(x, nan_policy='omit'))
+            valid_groups = valid_groups[valid_groups['z_score'].abs() <= 3]
+
+            outlier_info = {}
+            grouped_all = all_valid.groupby(['__station__', 'SPEED'])
+            grouped_valid = valid_groups.groupby(['__station__', 'SPEED'])
+
+            for group_key, group_df in grouped_all:
+                total = len(group_df)
+                filtered = len(grouped_valid.get_group(group_key)) if group_key in grouped_valid.groups else 0
+                msg = f"ไม่ตัด Outlier (ข้อมูลน้อย) — แถว: {total}" if total < 15 else f"ตัด Outlier — ก่อน: {total} หลัง: {filtered}"
+                idx_first = group_df.index.min()
+                outlier_info[idx_first] = msg
+
+            df['outlier_removed'] = ""
+            for idx, msg in outlier_info.items():
+                df.at[idx, 'outlier_removed'] = msg
+
+            # ==== ใช้ valid_groups ต่อ ====
             group_cols = ['__station__', 'SPEED']
+            station_avg = valid_groups.groupby(group_cols)['sec'].mean().round(4).to_dict()
 
-            station_avg = (
-                valid_groups
-                .groupby(group_cols)['sec']
-                .mean()
-                .round(4)
-                .to_dict()
-            )
-
-            first_indices = (
-                df[df['__station__'].notna() & df['SPEED'].notna() & (df['SPEED'] != 0)]
-                .groupby(group_cols)
-                .apply(lambda g: g.index.min())
-                .reset_index(name='idx')
-            )
-
+            first_indices = valid_groups.groupby(group_cols).apply(lambda g: g.index.min()).reset_index(name='idx')
             for row in first_indices.itertuples(index=False):
-                station = row[0]
-                speed = row[1]
-                idx = row[2]
+                station, speed, idx = row
                 avg = station_avg.get((station, speed))
                 if avg is not None:
-                    df.at[idx, 'Average_Frame-Stock'] = f"{station}: Average = {avg} time/strip (SPEED={speed})"
+                    df.at[idx, 'Average_Frame-Stock'] = f"{station}: Average = {avg} sec/strip (SPEED={speed})"
 
             df.drop(columns=['__station__', 'DateOnly'], inplace=True)
-
             processed_df = df.copy()
             data = df.to_dict(orient='records')
 
     return render_template('index.html', files=files, data=data, selected_file=selected_file)
+
 
 @app.route('/get_types', methods=['POST'])
 def get_types():
@@ -1772,7 +1783,7 @@ def export_excel():
         )
         df_to_export = df_to_export[~mask_bad_min]
 
-    desired_columns = ['Unnamed: 3', 'SPEED', 'Average', 'Data Point', 'Average_Frame-Stock', 'PACKAGE_CODE', 'outlier_removed']
+    desired_columns = ['Unnamed: 3', 'SPEED', 'Average', 'Data Point', 'Average_Frame-Stock', 'PACKAGE_CODE']
     df_to_export = df_to_export[[col for col in desired_columns if col in df_to_export.columns]]
 
     if 'Unnamed: 3' in df_to_export.columns:
