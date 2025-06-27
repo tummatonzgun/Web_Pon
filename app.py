@@ -1664,7 +1664,7 @@ def frame_stock():
 
                     if deltas:
                         avg_sec = round(sum(deltas) / len(deltas), 4)
-                        df.at[sub_group[-1], 'Average'] = f"Average-Group = {avg_sec} sec/strip"
+                        df.at[sub_group[-1], 'Average'] = f"Average-Group = {avg_sec} time/strip"
                         df.at[sub_group[-1], 'Data Point'] = str(len(deltas))
                         all_deltas.extend(deltas)
 
@@ -1674,7 +1674,7 @@ def frame_stock():
             df['Average_Frame-Stock'] = ''
 
             avg_all_sec = df['sec'].dropna().mean().round(4)
-            df.at[0, 'Average_Frame-Stock'] = f"Average_All = {avg_all_sec} sec/strip"
+            df.at[0, 'Average_Frame-Stock'] = f"Average_All = {avg_all_sec} time/strip"
 
             def get_station_name(val):
                 if pd.isna(val):
@@ -1719,7 +1719,7 @@ def frame_stock():
                 idx = row[2]
                 avg = station_avg.get((station, speed))
                 if avg is not None:
-                    df.at[idx, 'Average_Frame-Stock'] = f"{station}: Average = {avg} sec/strip (SPEED={speed})"
+                    df.at[idx, 'Average_Frame-Stock'] = f"{station}: Average = {avg} time/strip (SPEED={speed})"
 
             df.drop(columns=['__station__', 'DateOnly'], inplace=True)
 
