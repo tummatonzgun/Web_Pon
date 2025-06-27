@@ -1,0 +1,16 @@
+<form method="POST">
+    <label>Plant:</label>
+    <input type="text" name="plant" placeholder="เช่น utl1"><br>
+    <label>Year Quarter:</label>
+    <input type="text" name="year_quarter" placeholder="เช่น 2024Q1"><br>
+    <label>Operation:</label>
+    <input type="text" name="operation" placeholder="เช่น DIE ATTACH MAP"><br>
+    <label>BOM No (optional):</label>
+    <input type="text" name="bom_no"><br>
+    <button type="submit">Get Data</button>
+</form>
+
+{% if data %}
+    <h3>Response:</h3>
+    <pre>{{ data | tojson(indent=2) }}</pre>
+{% endif %}

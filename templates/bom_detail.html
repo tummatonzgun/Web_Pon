@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>BOM Detail - {{ selected_bom }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        img.plot-img {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 1rem;
+        }
+        table.table th,
+        table.table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="bg-light">
+<div class="container mt-4">
+    <h2 class="mb-3">📦 รายละเอียด BOM: <strong>{{ selected_bom }}</strong></h2>
+    <p>
+        <strong>File:</strong> {{ selected_file }} |
+        <strong>Operation:</strong> {{ selected_operation if selected_operation else "ทั้งหมด" }} |
+    </p>
+  
+    <hr>
+
+    <h4 class="text-primary mt-4">📊 สรุปข้อมูลก่อนลบ Outliers</h4>
+    <div class="table-responsive">
+        {{ summary_before|safe }}
+    </div>
+
+    <h4 class="text-secondary mt-4">📋 วิธีการตัดOutlier</h4>
+    <div class="table-responsive">
+        {{ data|safe }}
+    </div>
+
+    <h4 class="text-success mt-4">✅ สรุปข้อมูลหลังลบ Outliers</h4>
+    <div class="table-responsive">
+        {{ summary_after|safe }}
+    </div>
+
+    {% if model_summary %}
+    <h4 class="mt-5 text-dark">⚙️ ประสิทธิภาพการผลิตต่อ Machine Model</h4>
+    <div class="table-responsive">
+        <table class="table table-sm table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Normalized Model</th>
+                    <th>UPH เฉลี่ยหลังลบ Outlier</th>
+                    <th>UNIT (NO_BUMP + NUMBER_REQUIRED)</th>
+                    <th>Efficiency Ratio (UPH / UNIT)</th>
+                    <th>หมายเหตุ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in model_summary %}
+                <tr>
+                    <td>{{ row.model }}</td>
+                    <td>{{ row.uph_mean }}</td>
+                    <td>{{ row.unit }}</td>
+                    <td>{{ row.eff_ratio }}</td>
+                    <td>{{ row.note }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if boxplots_before %}
+    <h4 class="mt-5 text-warning">📉 กราฟ Boxplot ก่อนลบ Outliers</h4>
+    {% for plot in boxplots_before %}
+        <img src="{{ url_for('static', filename=plot) }}" class="plot-img border rounded shadow-sm" alt="Boxplot Before">
+    {% endfor %}
+    {% endif %}
+
+    {% if boxplots_after %}
+    <h4 class="mt-5 text-success">📈 กราฟ Boxplot หลังลบ Outliers</h4>
+    {% for plot in boxplots_after %}
+        <img src="{{ url_for('static', filename=plot) }}" class="plot-img border rounded shadow-sm" alt="Boxplot After">
+    {% endfor %}
+    {% endif %}
+
+   <!-- ปุ่มกลับด้านล่างซ้าย -->
+<div class="mt-4">
+    <a href="{{ url_for('select_bom') }}" class="btn btn-outline-secondary btn-sm">← กลับไปเลือก File ใหม่</a>
+</div>
+
+</div> <!-- ปิด container -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

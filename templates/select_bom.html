@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <title>เลือก BOM และ Operation</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <style>
+        body { background-color: #f0f2f5; }
+        .card { border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.05); }
+        #apl-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="container py-5">
+
+    <div id="apl-notification" class="alert alert-success" title="คลิกเพื่อปิด">
+        🔔 มีไฟล์ APL ใหม่เข้ามา(กดรีเฟรช)!
+    </div>
+
+    <!-- ปุ่มเพิ่มเติม -->
+<div class="d-grid mb-4">
+    <a href="{{ url_for('main') }}" class="btn btn-success"><i class="bi bi-table"></i> เลือก Plant, Year-Quarter, Operation (ข้อมูล WB, DA, PNP)</a>
+</div>
+
+    <div class="row">
+        <!-- WB Panel -->
+        <div class="col-md-4 mb-4">
+            <div class="card p-4">
+                <h4 class="mb-3"><i class="bi bi-cpu"></i> WB Data</h4>
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label">เลือกไฟล์ WB:</label>
+                        <select name="wb_csv_file" class="form-select select2">
+                            <option value="">-- เลือกไฟล์ --</option>
+                            {% for file in wb_files %}
+                                <option value="{{ file }}" {% if file == selected_wb_file %}selected{% endif %}>{{ file }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {% if wb_bom_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก BOM:</label>
+                        <select name="wb_selected_bom" class="form-select select2">
+                            <option value="">-- เลือก BOM --</option>
+                            {% for bom in wb_bom_list %}
+                                <option value="{{ bom }}" {% if bom == selected_wb_bom %}selected{% endif %}>{{ bom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    {% if wb_operation_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก Operation:</label>
+                        <select name="wb_operation" class="form-select select2">
+                            <option value="">-- เลือก Operation --</option>
+                            {% for op in wb_operation_list %}
+                                <option value="{{ op }}" {% if op == selected_wb_operation %}selected{% endif %}>{{ op }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    {% if wb_optn_code_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก Optn Code:</label>
+                        <select name="wb_optn_code" class="form-select select2">
+                            <option value="">-- เลือก Optn Code --</option>
+                            {% for code in wb_optn_code_list %}
+                                <option value="{{ code }}" {% if code == selected_wb_optn_code %}selected{% endif %}>{{ code }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid mb-2">
+                        <button type="submit" class="btn btn-primary" name="submit_wb">
+                            <i class="bi bi-arrow-repeat"></i> โหลดข้อมูล WB
+                        </button>
+                    </div>
+
+                    {% if selected_wb_file and selected_wb_bom %}
+                    <div class="d-grid">
+                        <a href="{{ url_for('display_data', file=selected_wb_file, bom=selected_wb_bom, operation=selected_wb_operation, optn_code=selected_wb_optn_code) }}" class="btn btn-success">
+                            <i class="bi bi-bar-chart-line"></i> แสดงข้อมูล WB
+                        </a>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- DA Panel -->
+        <div class="col-md-4 mb-4">
+            <div class="card p-4">
+                <h4 class="mb-3"><i class="bi bi-cpu-fill"></i> DA Data</h4>
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label">เลือกไฟล์ DA & DIE:</label>
+                        <select name="da_csv_file" class="form-select select2">
+                            <option value="">-- เลือกไฟล์ --</option>
+                            {% for file in da_files %}
+                                <option value="{{ file }}" {% if file == selected_da_file %}selected{% endif %}>{{ file }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {% if da_bom_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก BOM:</label>
+                        <select name="da_selected_bom" class="form-select select2">
+                            <option value="">-- เลือก BOM --</option>
+                            {% for bom in da_bom_list %}
+                                <option value="{{ bom }}" {% if bom == selected_da_bom %}selected{% endif %}>{{ bom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    {% if da_operation_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก Operation:</label>
+                        <select name="da_operation" class="form-select select2">
+                            <option value="">-- เลือก Operation --</option>
+                            {% for op in da_operation_list %}
+                                <option value="{{ op }}" {% if op == selected_da_operation %}selected{% endif %}>{{ op }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    {% if da_optn_code_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก Optn Code:</label>
+                        <select name="da_optn_code" class="form-select select2">
+                            <option value="">-- เลือก Optn Code --</option>
+                            {% for code in da_optn_code_list %}
+                                <option value="{{ code }}" {% if code == selected_da_optn_code %}selected{% endif %}>{{ code }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid mb-2">
+                        <button type="submit" class="btn btn-primary" name="submit_da">
+                            <i class="bi bi-arrow-repeat"></i> โหลดข้อมูล DA
+                        </button>
+                    </div>
+
+                    {% if selected_da_file and selected_da_bom %}
+                    <div class="d-grid">
+                        <a href="{{ url_for('display_data', file=selected_da_file, bom=selected_da_bom, operation=selected_da_operation, optn_code=selected_da_optn_code) }}" class="btn btn-success">
+                            <i class="bi bi-bar-chart-fill"></i> แสดงข้อมูล DA
+                        </a>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- PNP Panel -->
+        <div class="col-md-4 mb-4">
+            <div class="card p-4">
+                <h4 class="mb-3"><i class="bi bi-hdd-stack"></i> PNP Data</h4>
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label">เลือกไฟล์ PNP:</label>
+                        <select name="pnp_csv_file" class="form-select select2">
+                            <option value="">-- เลือกไฟล์ --</option>
+                            {% for file in pnp_files %}
+                                <option value="{{ file }}" {% if file == selected_pnp_file %}selected{% endif %}>{{ file }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {% if pnp_bom_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก BOM:</label>
+                        <select name="pnp_selected_bom" class="form-select select2">
+                            <option value="">-- เลือก BOM --</option>
+                            {% for bom in pnp_bom_list %}
+                                <option value="{{ bom }}" {% if bom == selected_pnp_bom %}selected{% endif %}>{{ bom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    {% if pnp_operation_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก Operation:</label>
+                        <select name="pnp_operation" class="form-select select2">
+                            <option value="">-- เลือก Operation --</option>
+                            {% for op in pnp_operation_list %}
+                                <option value="{{ op }}" {% if op == selected_pnp_operation %}selected{% endif %}>{{ op }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    {% if pnp_optn_code_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก Optn Code:</label>
+                        <select name="pnp_optn_code" class="form-select select2">
+                            <option value="">-- เลือก Optn Code --</option>
+                            {% for code in pnp_optn_code_list %}
+                                <option value="{{ code }}" {% if code == selected_pnp_optn_code %}selected{% endif %}>{{ code }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid mb-2">
+                        <button type="submit" class="btn btn-primary" name="submit_pnp">
+                            <i class="bi bi-arrow-repeat"></i> โหลดข้อมูล PNP
+                        </button>
+                    </div>
+
+                    {% if selected_pnp_file and selected_pnp_bom %}
+                    <div class="d-grid">
+                        <a href="{{ url_for('display_data', file=selected_pnp_file, bom=selected_pnp_bom, operation=selected_pnp_operation, optn_code=selected_pnp_optn_code) }}" class="btn btn-success">
+                            <i class="bi bi-bar-chart"></i> แสดงข้อมูล PNP
+                        </a>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- OTHER Panel -->
+        <div class="col-md-4 mb-4">
+            <div class="card p-4">
+                <h4 class="mb-3"><i class="bi bi-database-fill-add"></i> ALL Data</h4>
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label">เลือกไฟล์ ALL:</label>
+                        <select name="other_csv_file" class="form-select select2">
+                            <option value="">-- เลือกไฟล์ --</option>
+                            {% for file in other_files %}
+                                <option value="{{ file }}" {% if file == selected_other_file %}selected{% endif %}>{{ file }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {% if other_bom_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก BOM:</label>
+                        <select name="other_selected_bom" class="form-select select2">
+                            <option value="">-- เลือก BOM --</option>
+                            {% for bom in other_bom_list %}
+                                <option value="{{ bom }}" {% if bom == selected_other_bom %}selected{% endif %}>{{ bom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    {% if other_operation_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก Operation:</label>
+                        <select name="other_operation" class="form-select select2">
+                            <option value="">-- เลือก Operation --</option>
+                            {% for op in other_operation_list %}
+                                <option value="{{ op }}" {% if op == selected_other_operation %}selected{% endif %}>{{ op }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    {% if other_optn_code_list %}
+                    <div class="mb-3">
+                        <label class="form-label">เลือก Optn Code:</label>
+                        <select name="other_optn_code" class="form-select select2">
+                            <option value="">-- เลือก Optn Code --</option>
+                            {% for code in other_optn_code_list %}
+                                <option value="{{ code }}" {% if code == selected_other_optn_code %}selected{% endif %}>{{ code }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid mb-2">
+                        <button type="submit" class="btn btn-primary" name="submit_other">
+                            <i class="bi bi-arrow-repeat"></i> โหลดข้อมูล Other
+                        </button>
+                    </div>
+
+                    {% if selected_other_file and selected_other_bom %}
+                    <div class="d-grid">
+                        <a href="{{ url_for('display_data', file=selected_other_file, bom=selected_other_bom, operation=selected_other_operation, optn_code=selected_other_optn_code) }}" class="btn btn-success">
+                            <i class="bi bi-bar-chart-steps"></i> แสดงข้อมูล Other
+                        </a>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ปุ่มเพิ่มเติม -->
+    <div class="d-grid">
+        <a href="{{ url_for('all_boms') }}" class="btn btn-success mt-2"><i class="bi bi-table"></i> ดูข้อมูล All BOM</a>
+        <a href="{{ url_for('frame_stock') }}" class="btn btn-info mt-2"><i class="bi bi-box"></i> Frame Stock</a>
+    </div>
+
+<script>
+$(document).ready(function () {
+    // ✅ Activate Select2
+    $('.select2').select2({ width: '100%' });
+
+    // ✅ ตัวแปรเก็บไฟล์ที่เคยเห็นแล้ว
+    let seenFiles = new Set();
+
+    // ✅ ฟังก์ชันโหลด Excel
+    window.downloadAPL = function (event) {
+        event.preventDefault(); // ป้องกัน form reload
+
+        const plant = $("#plantSelect").val();
+        const quarter = $("#quarterSelect").val();
+        const operation = $("#operationSelect").val();
+
+        if (!plant || !quarter || !operation) {
+            alert("❌ กรุณาเลือกให้ครบทุกช่อง");
+            return;
+        }
+
+        const url = `/download_apl_excel?plant=${plant}&year_quarter=${quarter}&operation=${encodeURIComponent(operation)}`;
+        window.location.href = url;
+    }
+
+    // ✅ ฟังก์ชันเช็คไฟล์ใหม่
+    function checkNewAPL() {
+        $.get("/check_new_files", function (data) {
+            let files = data.files; // รายชื่อไฟล์ทั้งหมดจาก server
+            let newFiles = files.filter(f => !seenFiles.has(f));
+
+            if (newFiles.length > 0) {
+                $("#apl-notification").fadeIn();
+                newFiles.forEach(f => seenFiles.add(f));
+            }
+        });
+    }
+
+    // ✅ เรียกเช็คไฟล์ทุก 5 วิ
+    setInterval(checkNewAPL, 5000);
+
+    // ✅ คลิกเพื่อปิดแจ้งเตือน
+    $("#apl-notification").on("click", function () {
+        $(this).fadeOut();
+    });
+
+    // เรียกครั้งแรกเพื่ออัพเดตรายชื่อไฟล์ที่เห็นแล้ว
+    $.get("/check_new_files", function (data) {
+        data.files.forEach(f => seenFiles.add(f));
+    });
+});
+</script>
+</body>
+</html>
+

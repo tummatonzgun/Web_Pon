@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <title>เลือกข้อมูล BOM</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+    <!-- jQuery + Select2 JS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        h1 {
+            font-weight: bold;
+        }
+        .card {
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        }
+        .select2-container--default .select2-selection--single {
+            height: 38px;
+            padding: 6px 12px;
+        }
+    </style>
+</head>
+<body class="container py-5">
+
+    <h1 class="mb-4 text-center"><i class="bi bi-list-check"></i> เลือกข้อมูล BOM</h1>
+
+    <div class="card p-4 mx-auto" style="max-width: 700px;">
+        <form method="post" action="/">
+            <!-- WB Section -->
+            <h4><i class="bi bi-file-earmark-spreadsheet"></i> WB Files</h4>
+            <div class="mb-3">
+                <label for="wb_csv_file" class="form-label">เลือกไฟล์ข้อมูล WB:</label>
+                <select name="wb_csv_file" id="wb_csv_file" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- เลือกไฟล์ WB --</option>
+                    {% for file in wb_files %}
+                        <option value="{{ file }}" {% if file == selected_wb_file %}selected{% endif %}>{{ file }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if wb_bom_list %}
+            <div class="mb-3">
+                <label for="wb_selected_bom" class="form-label">เลือก BOM WB:</label>
+                <select name="wb_selected_bom" id="wb_selected_bom" class="form-select select2-bom">
+                    <option value="">-- เลือก BOM WB --</option>
+                    {% for bom in wb_bom_list %}
+                        <option value="{{ bom }}" {% if bom == selected_wb_bom %}selected{% endif %}>{{ bom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            {% if wb_operation_list %}
+            <div class="mb-3">
+                <label for="wb_operation" class="form-label">เลือก Operation WB (ถ้ามี):</label>
+                <select name="wb_operation" id="wb_operation" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- เลือก Operation WB --</option>
+                    {% for op in wb_operation_list %}
+                        <option value="{{ op }}" {% if op == selected_wb_operation %}selected{% endif %}>{{ op }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <hr/>
+
+            <!-- DA Section -->
+            <h4><i class="bi bi-file-earmark-spreadsheet"></i> DA Files</h4>
+            <div class="mb-3">
+                <label for="da_csv_file" class="form-label">เลือกไฟล์ข้อมูล DA:</label>
+                <select name="da_csv_file" id="da_csv_file" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- เลือกไฟล์ DA --</option>
+                    {% for file in da_files %}
+                        <option value="{{ file }}" {% if file == selected_da_file %}selected{% endif %}>{{ file }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if da_bom_list %}
+            <div class="mb-3">
+                <label for="da_selected_bom" class="form-label">เลือก BOM DA:</label>
+                <select name="da_selected_bom" id="da_selected_bom" class="form-select select2-bom">
+                    <option value="">-- เลือก BOM DA --</option>
+                    {% for bom in da_bom_list %}
+                        <option value="{{ bom }}" {% if bom == selected_da_bom %}selected{% endif %}>{{ bom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            {% if da_operation_list %}
+            <div class="mb-3">
+                <label for="da_operation" class="form-label">เลือก Operation DA(ถ้ามี):</label>
+                <select name="da_operation" id="da_operation" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- เลือก Operation DA --</option>
+                    {% for op in da_operation_list %}
+                        <option value="{{ op }}" {% if op == selected_da_operation %}selected{% endif %}>{{ op }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <!-- ปุ่มแสดง WB -->
+            {% if selected_wb_file and selected_wb_bom and selected_wb_operation %}
+            <div class="d-grid mb-2">
+                <a href="{{ url_for('display_data',
+                                    file=selected_wb_file,
+                                    bom=selected_wb_bom,
+                                    operation=selected_wb_operation,
+                                    data_type='wb') }}"
+                   class="btn btn-primary">
+                    <i class="bi bi-search"></i> แสดงรายละเอียด BOM WB
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- ปุ่มแสดง DA-->
+            {% if selected_da_file and selected_da_bom and selected_da_operation %}
+            <div class="d-grid mb-2">
+                <a href="{{ url_for('display_data',
+                                    file=selected_da_file,
+                                    bom=selected_da_bom,
+                                    operation=selected_da_operation,
+                                    data_type='da') }}"
+                   class="btn btn-primary">
+                    <i class="bi bi-search"></i> แสดงรายละเอียด BOM DA
+                </a>
+            </div>
+            {% endif %}
+        </form>
+
+        <!-- ปุ่มไปยัง All BOMs -->
+        <div class="d-grid">
+            <a href="{{ url_for('all_boms') }}" class="btn btn-success">
+                <i class="bi bi-table"></i> ดูข้อมูล All BOMs
+            </a>
+        </div>
+    </div>
+
+    <!-- Enable Select2 -->
+    <script>
+    $(document).ready(function() {
+        $('.select2-bom').select2({
+            placeholder: "-- เลือก BOM --",
+            allowClear: true,
+            width: '100%'
+        });
+
+        $('.select2-bom').on('change', function() {
+            $(this).closest('form').submit();
+        });
+    });
+    </script>
+</body>
+</html>

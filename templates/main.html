@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>โหลดข้อมูลจาก JS - APL Loader</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <div class="text-center mb-4">
+        <h2 class="text-primary">
+            <i class="bi bi-sliders"></i> โหลดข้อมูลจากไฟล์ JS
+        </h2>
+        <p class="text-muted">เลือก Plant, Year/Quarter และ Operation เพื่อโหลดข้อมูลที่ฝั่ง JSON</p>
+    </div>
+
+    <form id="js-loader-form" class="card p-4 shadow-sm bg-white border-0">
+        <div class="mb-3">
+            <label class="form-label">⚙️ Plant</label>
+            <select id="plant" class="form-select" required>
+                <option value="">-- เลือก Plant --</option>
+                {% for p in plants %}
+                    <option value="{{ p }}">{{ p|upper }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">📅 Year/Quarter</label>
+            <select id="year_quarter" class="form-select" required>
+                <option value="">-- เลือก Year/Quarter --</option>
+                {% for yq in year_quarters %}
+                    <option value="{{ yq }}">{{ yq }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">⚙️ Operation</label>
+            <select id="operation" class="form-select" required>
+                <option value="">-- เลือก Operation --</option>
+                {% for op in operations %}
+                    <option value="{{ op }}">{{ op }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-cloud-download"></i> โหลดข้อมูลจาก JS
+            </button>
+        </div>
+    </form>
+
+    <div class="mt-4">
+        <h5 class="text-success">📋 ข้อมูลที่โหลดได้:</h5>
+        <pre id="output" class="bg-dark text-white p-3 rounded" style="max-height: 300px; overflow: auto;"></pre>
+    </div>
+</div>
+
+<script>
+document.getElementById("js-loader-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+
+    const plant = document.getElementById("plant").value;
+    const quarter = document.getElementById("year_quarter").value;
+    const operation = document.getElementById("operation").value;
+    const output = document.getElementById("output");
+
+    if (!plant || !quarter || !operation) {
+        alert("❌ กรุณาเลือกให้ครบทุกช่อง");
+        return;
+    }
+
+    const operationMapping = {
+        "DIE ATTACH": "DIE",
+        "DIE ATTACH MAP": "DIEMAP",
+        "LEAD BOND ROV": "WB",
+        "PKG PICK PLACE": "PNP"
+    };
+
+    const key = operationMapping[operation];
+    if (!key) {
+        alert("❌ ไม่รู้จัก Operation: " + operation);
+        return;
+    }
+
+    const fileKey = `${key}${quarter}`;
+    const jsFileName = `${fileKey}.js`;
+    const variableName = `${fileKey}_raw`;
+    const scriptPath = `/static/js/${jsFileName}`;
+
+    output.textContent = "🔄 กำลังโหลดข้อมูลจากไฟล์ JS...";
+
+    if (window[variableName]) {
+        renderData(window[variableName], plant, quarter, operation);
+        return;
+    }
+
+    const script = document.createElement("script");
+    script.src = scriptPath;
+    script.onload = () => {
+        const rawData = window[variableName];
+        if (rawData) {
+            renderData(rawData, plant, quarter, operation);
+        } else {
+            output.textContent = "❌ ไม่พบข้อมูลในตัวแปร: " + variableName;
+        }
+    };
+    script.onerror = () => {
+        output.textContent = "❌ ไม่สามารถโหลดไฟล์: " + jsFileName;
+    };
+
+    document.body.appendChild(script);
+});
+
+function renderData(data, plant, quarter, operation) {
+    const output = document.getElementById("output");
+
+    const enriched = data.map(row => ({
+        ...row,
+        plant,
+        year_quarter: quarter,
+        operation
+    }));
+
+    output.textContent = "✅ โหลดข้อมูลสำเร็จ\n\n" + JSON.stringify(enriched, null, 2);
+
+    // ✅ ตั้งชื่อพารามิเตอร์ operation ใหม่ตอน export
+    let exportOperationName = operation;
+    if (operation === "LEAD BOND ROV") {
+        exportOperationName = "LEAD BOND ROV_WB";
+    }
+
+    const encodedOp = encodeURIComponent(exportOperationName);
+    const downloadUrl = `/download_apl_excel?plant=${plant}&year_quarter=${quarter}&operation=${encodedOp}`;
+    window.location.href = downloadUrl;
+}
+</script>
+</body>
+</html>

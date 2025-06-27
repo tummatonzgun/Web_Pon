@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>เลือกไฟล์และประเภท</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            margin: 40px;
+            background-color: #f9fafc;
+            color: #333;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 15px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        select {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            min-width: 200px;
+        }
+
+        button, .export-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover, .export-btn:hover {
+            background-color: #2980b9;
+        }
+
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .export-container {
+            margin: 20px 0;
+        }
+
+        .export-container form {
+            display: inline;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background-color: #f4f6f8;
+            color: #2c3e50;
+        }
+
+        .average, .error-step {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff7e6;
+            border-left: 5px solid #f39c12;
+            border-radius: 8px;
+        }
+
+        ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>เลือกไฟล์และประเภทข้อมูล</h1>
+
+    <form method="POST" id="dataForm">
+        <label>เลือกไฟล์:</label>
+        <select name="file" id="file" required>
+            <option value="">-- เลือกไฟล์ --</option>
+            {% for file in files %}
+                <option value="{{ file }}" {% if file == selected_file %}selected{% endif %}>{{ file }}</option>
+            {% endfor %}
+        </select>
+
+        <label>เลือกประเภท:</label>
+        <select name="data_type" id="data_type" required>
+            <option value="">-- เลือกประเภท --</option>
+            {% if types %}
+                {% for t in types %}
+                    <option value="{{ t }}" {% if t == selected_type %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            {% endif %}
+        </select>
+
+        <button type="submit" id="submitBtn" disabled>แสดงข้อมูล</button>
+    </form>
+
+    {% if error_step_counts %}
+        <div class="error-step">
+            <strong>จำนวน Error Step:</strong>
+            <ul>
+                {% for step, count in error_step_counts.items() %}
+                    <li>{{ step }}: {{ count }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    {% if data %}
+        <div class="export-container">
+            <form method="GET" action="/export_excel">
+                <input type="hidden" name="filename" value="{{ selected_file }}">
+                <button class="export-btn" type="submit">📥 Export PRO (4Columnที่ใช้)</button>
+            </form>
+
+            <form method="GET" action="/export_all_pro" style="margin-left: 10px;">
+                <input type="hidden" name="filename" value="{{ selected_file }}">
+                <button class="export-btn" type="submit">📥 Export PRO ทั้งหมด</button>
+            </form>
+        </div>
+
+        <h2>ข้อมูลที่เลือก</h2>
+        <table>
+            <tr>
+                {% for key in data[0].keys() %}
+                    <th>{{ key }}</th>
+                {% endfor %}
+            </tr>
+            {% for row in data %}
+                <tr>
+                    {% for val in row.values() %}
+                        <td>{{ val }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    <script>
+        const fileSelect = document.getElementById('file');
+        const typeSelect = document.getElementById('data_type');
+        const submitBtn = document.getElementById('submitBtn');
+
+        function updateSubmitButtonState() {
+            submitBtn.disabled = !(fileSelect.value && typeSelect.value);
+        }
+
+        fileSelect.addEventListener('change', function () {
+            const file = fileSelect.value;
+            typeSelect.innerHTML = '<option value="">-- เลือกประเภท --</option>';
+            submitBtn.disabled = true;
+
+            if (!file) return;
+
+            fetch('/get_types', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: file })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.text = 'ไม่พบประเภท';
+                    typeSelect.appendChild(opt);
+                } else {
+                    data.forEach(type => {
+                        const opt = document.createElement('option');
+                        opt.value = type;
+                        opt.text = type;
+                        typeSelect.appendChild(opt);
+                    });
+                }
+                updateSubmitButtonState();
+            })
+            .catch(err => {
+                console.error('loadTypes error:', err);
+            });
+        });
+
+        typeSelect.addEventListener('change', updateSubmitButtonState);
+        window.onload = updateSubmitButtonState;
+    </script>
+
+</body>
+</html>

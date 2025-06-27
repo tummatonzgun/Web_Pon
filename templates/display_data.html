@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <title>แสดงข้อมูล BOM และ Operation</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+    <style>
+        body {
+            background-color: #f9fafb;
+            padding: 2rem;
+        }
+        .table-container {
+            margin-bottom: 2rem;
+        }
+        h2 {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+        .boxplot-img {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 0.5rem;
+            background-color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+
+        <h1 class="mb-4">แสดงข้อมูลสำหรับไฟล์: {{ selected_file }}</h1>
+        <h4>ประเภทข้อมูล: {{ data_type|upper }}</h4>
+        <p><strong>BOM ที่เลือก:</strong> {{ selected_bom or 'ไม่ระบุ' }}</p>
+        <p><strong>Operation ที่เลือก:</strong> {{ selected_operation or 'ไม่ระบุ' }}</p>
+
+        <div class="table-container">
+            <h2>สรุป UPH ก่อนลบ Outliers</h2>
+            {% if summary_before != "ไม่มีข้อมูล" %}
+                {{ summary_before | safe }}
+            {% else %}
+                <p>ไม่มีข้อมูลสรุปก่อนลบ Outliers</p>
+            {% endif %}
+        </div>
+
+        <div class="table-container">
+            <h2>สรุป UPH หลังลบ Outliers</h2>
+            {% if summary_after != "ไม่มีข้อมูล" %}
+                {{ summary_after | safe }}
+            {% else %}
+                <p>ไม่มีข้อมูลสรุปหลังลบ Outliers</p>
+            {% endif %}
+        </div>
+
+        <div class="table-container">
+            <h2>ข้อมูลที่ผ่านการลบ Outliers</h2>
+            {% if data != "ไม่มีข้อมูล" %}
+                {{ data | safe }}
+            {% else %}
+                <p>ไม่มีข้อมูลหลังลบ Outliers</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <h2>กราฟ Boxplot ก่อนลบ Outliers</h2>
+            {% if boxplots_before %}
+                {% for img_path in boxplots_before %}
+                    <img src="{{ url_for('static', filename=img_path) }}" alt="Boxplot ก่อนลบ Outliers" class="boxplot-img" />
+                {% endfor %}
+            {% else %}
+                <p>ไม่มีกราฟให้แสดง</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <h2>กราฟ Boxplot หลังลบ Outliers</h2>
+            {% if boxplots_after %}
+                {% for img_path in boxplots_after %}
+                    <img src="{{ url_for('static', filename=img_path) }}" alt="Boxplot หลังลบ Outliers" class="boxplot-img" />
+                {% endfor %}
+            {% else %}
+                <p>ไม่มีกราฟให้แสดง</p>
+            {% endif %}
+        </div>
+
+        <div class="mt-4">
+            <a href="{{ url_for('bom_detail') }}" class="btn btn-secondary"></a>
+                <i class="bi bi-arrow-left"></i> กลับหน้าหลัก
+            </a>
+        </div>
+    </div>
+    ') }}" class="btn btn-secondary">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+</body>
+</html>

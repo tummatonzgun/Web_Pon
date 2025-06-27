@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>APL Report</title>
+    <script>
+        let lastCount = 0;
+
+        function checkNewFiles() {
+            fetch("/check_new_files")
+                .then(response => response.json())
+                .then(data => {
+                    const currentCount = data.count;
+                    const notifyBox = document.getElementById("notification");
+
+                    if (currentCount > lastCount) {
+                        notifyBox.innerText = "🔔 มีไฟล์ APL ใหม่เข้ามา!";
+                        notifyBox.style.color = "green";
+                    } else {
+                        notifyBox.innerText = "ไม่มีไฟล์ใหม่";
+                        notifyBox.style.color = "gray";
+                    }
+
+                    lastCount = currentCount;
+                });
+        }
+
+        setInterval(checkNewFiles, 5000);  // 🔁 เช็คทุก 5 วินาที
+    </script>
+</head>
+<body>
+    <h2>📄 APL Files ที่สร้างแล้ว</h2>
+    <div id="notification" style="font-weight: bold; margin-bottom: 10px;">ไม่มีไฟล์ใหม่</div>
+
+    {% if files %}
+        <ul>
+        {% for file in files %}
+            <li>{{ file }}</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>ยังไม่มีไฟล์</p>
+    {% endif %}
+</body>
+</html>

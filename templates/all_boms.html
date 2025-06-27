@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>สรุปข้อมูลทั้งหมด</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt&display=swap" rel="stylesheet" />
+
+    <!-- ✅ เพิ่ม Select2 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        h2, h3 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        select, #filterInput {
+            width: 100%;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 16px;
+            min-width: 600px;
+            margin-bottom: 40px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px 15px;
+            text-align: center;
+        }
+        th {
+            background-color: #2e86de;
+            color: white;
+        }
+        td.numeric {
+            text-align: right;
+            white-space: nowrap;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tbody tr:hover {
+            background-color: #e8f0fe;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 15px;
+            background-color: #2e86de;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            white-space: nowrap;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #1b4f72;
+        }
+        .no-data {
+            text-align: center;
+            margin-top: 20px;
+            color: #555;
+            font-style: italic;
+        }
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .responsive-table {
+            overflow-x: auto;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>สรุปข้อมูลทั้งหมด</h2>
+
+    <form method="post">
+        <label for="csv_file">เลือกไฟล์ CSV/Excel:</label>
+        <select name="csv_file" id="csv_file" class="select2" onchange="this.form.submit()">
+            <option value="">-- เลือกไฟล์ --</option>
+            {% for f in file_list %}
+            <option value="{{ f }}" {% if selected_file == f %}selected{% endif %}>{{ f }}</option>
+            {% endfor %}
+        </select>
+    </form>
+
+    <input type="text" id="filterInput" placeholder="พิมพ์เพื่อค้นหา BOM หรือ Package Code..." onkeyup="filterTables()" />
+
+    {% if summary_wb or summary_da or summary_pnp %}
+        <div class="button-group">
+            <form action="/export_all_boms_excel" method="post" style="margin:0;">
+                <input type="hidden" name="csv_file" value="{{ selected_file }}">
+                <button type="submit" class="btn">📥 Export เป็น Excel</button>
+            </form>
+            <a href="{{ url_for('select_bom') }}" class="btn">⬅️ กลับหน้าหลัก</a>
+        </div>
+
+        {% if summary_wb %}
+        <h3>🔵 ข้อมูล WB</h3>
+        <div class="responsive-table">
+            <table id="wbTable" class="summaryTable">
+                <thead>
+                    <tr>
+                        <th>BOM</th>
+                        <th>WB Machine Model</th>
+                        <th>Operation</th>
+                        <th>Optn Code</th>
+                        <th>Wire Per Hour</th>
+                        <th>Wire Per Unit</th>
+                        <th>UPH</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in summary_wb %}
+                    <tr>
+                        <td>{{ row.bom }}</td>
+                        <td>{{ row.model }}</td>
+                        <td>{{ row.operation or '-' }}</td>
+                        <td>{{ row.optn_code or '-' }}</td>
+                        <td class="numeric">
+                            {{ "%.2f"|format(row.mean_after) if row.mean_after is not none else "-" }}
+                            {% if row.no_outlier_note %}
+                                <br><small style="color: orange;">{{ row.no_outlier_note }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="numeric">{{ "%.2f"|format(row.wire_per_unit) if row.wire_per_unit is not none else "-" }}</td>
+                        <td class="numeric">{{ "%.3f"|format(row.efficiency_ratio) if row.efficiency_ratio is not none else "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if summary_da %}
+        <h3>🟢 ข้อมูล DA</h3>
+        <div class="responsive-table">
+            <table id="daTable" class="summaryTable">
+                <thead>
+                    <tr>
+                        <th>BOM</th>
+                        <th>DA Machine Model</th>
+                        <th>Operation</th>
+                        <th>Optn Code</th>
+                        <th>Wire Per Hour</th>
+                        <th>Wire Per Unit</th>
+                        <th>UPH</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in summary_da %}
+                    <tr>
+                        <td>{{ row.bom }}</td>
+                        <td>{{ row.model }}</td>
+                        <td>{{ row.operation or '-' }}</td>
+                        <td>{{ row.optn_code or '-' }}</td>
+                        <td class="numeric">
+                            {{ "%.2f"|format(row.mean_after) if row.mean_after is not none else "-" }}
+                            {% if row.no_outlier_note %}
+                                <br><small style="color: orange;">{{ row.no_outlier_note }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="numeric">{{ "%.2f"|format(row.wire_per_unit) if row.wire_per_unit is not none else "-" }}</td>
+                        <td class="numeric">{{ "%.3f"|format(row.efficiency_ratio) if row.efficiency_ratio is not none else "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if summary_pnp %}
+        <h3>🟠 ข้อมูล PNP</h3>
+        <div class="responsive-table">
+            <table id="pnpTable" class="summaryTable">
+                <thead>
+                    <tr>
+                        <th>BOM</th>
+                        <th>PNP Machine Model</th>
+                        <th>Operation</th>
+                        <th>Optn Code</th>
+                        <th>Wire Per Hour</th>
+                        <th>Wire Per Unit</th>
+                        <th>UPH</th>
+                        <th>Assy Pack Type</th>
+                        <th>Package Code</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in summary_pnp %}
+                    <tr>
+                        <td>{{ row.bom }}</td>
+                        <td>{{ row.model }}</td>
+                        <td>{{ row.operation or '-' }}</td>
+                        <td>{{ row.optn_code or '-' }}</td>
+                        <td class="numeric">
+                            {{ "%.2f"|format(row.mean_after) if row.mean_after is not none else "-" }}
+                            {% if row.no_outlier_note %}
+                                <br><small style="color: orange;">{{ row.no_outlier_note }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="numeric">{{ "%.2f"|format(row.wire_per_unit) if row.wire_per_unit is not none else "-" }}</td>
+                        <td class="numeric">{{ "%.3f"|format(row.efficiency_ratio) if row.efficiency_ratio is not none else "-" }}</td>
+                        <td>{{ row.assy_pack_type or "ไม่ระบุ" }}</td>
+                        <td>{{ row.package_code or "ไม่ระบุ" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+    {% else %}
+        <p class="no-data">ไม่มีข้อมูลสำหรับไฟล์นี้</p>
+        <div class="button-group">
+            <a href="{{ url_for('select_bom') }}" class="btn">⬅️ กลับหน้าหลักเพื่อเปลี่ยนไฟล์ CSV</a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+     $(document).ready(function() {
+        $('.select2').select2({
+            placeholder: "-- เลือกไฟล์ --",
+            allowClear: true,
+            width: '100%'
+        });
+    });
+
+    function filterTables() {
+    const input = document.getElementById("filterInput");
+    const filter = input.value.toUpperCase();
+
+    ['wbTable', 'daTable', 'pnpTable'].forEach(tableId => {
+        const table = document.getElementById(tableId);
+        if (!table) return;
+
+        const tr = table.getElementsByTagName("tr");
+        for (let i = 1; i < tr.length; i++) {
+            const tds = tr[i].getElementsByTagName("td");
+
+            // เช็ค BOM และ Package Code (สมมุติ column 0 = BOM, column 8 = Package Code)
+            const bomText = tds[0] ? tds[0].textContent.toUpperCase() : "";
+            const pkgText = tds.length > 8 ? tds[8].textContent.toUpperCase() : "";  // เฉพาะ pnpTable ที่มี package_code
+
+            const match = bomText.includes(filter) || pkgText.includes(filter);
+            tr[i].style.display = match ? "" : "none";
+        }
+    });
+}
+</script>
+</body>
+</html>
