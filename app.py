@@ -732,7 +732,7 @@ def display_data():
                 if file_type == 'WB':
                     no_bump_val = bom_nobump_df['NO_BUMP'].dropna().iloc[0] if not bom_nobump_df['NO_BUMP'].dropna().empty else 0
                     number_required_val = bom_nobump_df['NUMBER_REQUIRED'].dropna().iloc[0] if 'NUMBER_REQUIRED' in bom_nobump_df.columns and not bom_nobump_df['NUMBER_REQUIRED'].dropna().empty else 0
-                    UNIT = (no_bump_val + number_required_val) / 2 if (no_bump_val or number_required_val) else 0
+                    UNIT = (no_bump_val / 2) + number_required_val if (no_bump_val or number_required_val) else 0
                 else:
                     UNIT = 1
 
@@ -1688,9 +1688,9 @@ def frame_stock():
                     return None
                 val_str = str(val)
                 if '\\' in val_str:
-                    return val_str.split('\\')[-1]
+                    val_str = val_str.split('\\')[-1]
+                    val_str = re.sub(r'-[A-Z0-9]+$', '', val_str)
                 return val_str.strip()
-
             df['__station__'] = df['Unnamed: 3'].apply(get_station_name)
             df['PACKAGE_CODE'] = df['__station__'].map(lambda x: item_map.get(str(x).strip()) if pd.notna(x) else None)
 
