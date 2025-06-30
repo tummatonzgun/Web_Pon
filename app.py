@@ -1690,6 +1690,7 @@ def frame_stock():
                 if '\\' in val_str:
                     val_str = val_str.split('\\')[-1]
                     val_str = re.sub(r'-[A-Z0-9]+$', '', val_str)
+                    val_str = re.sub(r'([A-Z])$', '', val_str)
                 return val_str.strip()
             df['__station__'] = df['Unnamed: 3'].apply(get_station_name)
             df['PACKAGE_CODE'] = df['__station__'].map(lambda x: item_map.get(str(x).strip()) if pd.notna(x) else None)
