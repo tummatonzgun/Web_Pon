@@ -1252,7 +1252,7 @@ def all_boms():
                             if 'NUMBER_REQUIRED' in bom_nobump_df.columns and not bom_nobump_df['NUMBER_REQUIRED'].dropna().empty
                             else 0
                         )
-                        UNIT = (no_bump_val + number_required_val) / 2 if (no_bump_val or number_required_val) else 1
+                        UNIT = adjusted_val = (no_bump_val / 2) + number_required_val if (no_bump_val or number_required_val) else 1
                     else:
                         UNIT = 1
 
@@ -1466,7 +1466,7 @@ def export_all_boms_excel():
                 except:
                     no_bump_val, number_required_val = 0, 0
 
-                UNIT = (no_bump_val + number_required_val) / 2 if (no_bump_val or number_required_val) else 1
+                UNIT = adjusted_val = (no_bump_val / 2) + number_required_val if (no_bump_val or number_required_val) else 1
 
                 for _, row in summary.iterrows():
                     model = row['Normalized Model']
@@ -1681,7 +1681,7 @@ def frame_stock():
             df['Average_Frame-Stock'] = ''
 
             avg_all_sec = df['sec'].dropna().mean().round(4)
-            df.at[0, 'Average_Frame-Stock'] = f"Average_All = {avg_all_sec} sec/strip"
+            df.at[0, 'Average_Frame-Stock'] = f"Average_All = {avg_all_sec} time/strip"
 
             def get_station_name(val):
                 if pd.isna(val):
@@ -1730,7 +1730,7 @@ def frame_stock():
                 station, speed, idx = row
                 avg = station_avg.get((station, speed))
                 if avg is not None:
-                    df.at[idx, 'Average_Frame-Stock'] = f"{station}: Average = {avg} sec/strip (SPEED={speed})"
+                    df.at[idx, 'Average_Frame-Stock'] = f"{station}: Average = {avg} time/strip (SPEED={speed})"
 
             df.drop(columns=['__station__', 'DateOnly'], inplace=True)
             processed_df = df.copy()
@@ -1783,7 +1783,7 @@ def export_excel():
         )
         df_to_export = df_to_export[~mask_bad_min]
 
-    desired_columns = ['Unnamed: 3', 'SPEED', 'Average', 'Data Point', 'Average_Frame-Stock', 'PACKAGE_CODE']
+    desired_columns = ['Unnamed: 3', 'SPEED', 'Average', 'Data Point', 'Average_Frame-Stock', 'PACKAGE_CODE', 'outlier_removed']
     df_to_export = df_to_export[[col for col in desired_columns if col in df_to_export.columns]]
 
     if 'Unnamed: 3' in df_to_export.columns:
