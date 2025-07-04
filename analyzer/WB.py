@@ -11,6 +11,33 @@ class WireBondingAnalyzer:
         self.efficiency_df = None
         self.raw_data = None
     
+    def normalize_model_name(self, model_name):
+        """ทำความสะอาดและรวมชื่อรุ่นเครื่องที่คล้ายกัน"""
+        if not isinstance(model_name, str):
+            model_name = str(model_name)
+        
+        model_name = model_name.strip().upper()
+        
+        # รวม WB3100 ทุกเวอร์ชัน
+        if 'WB3100' in model_name:
+            return 'WB3100'
+        
+        # สามารถเพิ่มกฎการรวมรุ่นอื่นๆ ที่นี่
+        if 'WB3200' in model_name:
+            return 'WB3200'
+        
+        if 'WB3300' in model_name:
+            return 'WB3300'
+            
+        return model_name
+
+    def clean_model_names(self, df):
+        """ทำความสะอาดชื่อรุ่นเครื่อง (เวอร์ชันปรับปรุง)"""
+        df = df.copy()
+        if 'machine model' in df.columns:
+            df['machine model'] = df['machine model'].apply(self.normalize_model_name)
+        return df
+    
     def load_data(self, uph_path, wire_data_path):
         """โหลดข้อมูลที่จำเป็น"""
         try:
@@ -31,15 +58,6 @@ class WireBondingAnalyzer:
             print(f"Error loading data: {e}")
             return False
     
-    def clean_model_names(self, df):
-        """ทำความสะอาดชื่อรุ่นเครื่อง (เวอร์ชันไม่ลบ PLUS)"""
-        df = df.copy()
-        if 'machine model' in df.columns:
-            df['machine model'] = df['machine model'].astype(str)
-            # ไม่ลบคำว่า PLUS แล้ว
-            df['machine model'] = df['machine model'].str.strip()
-        return df
-    
     def calculate_wire_per_unit(self, bom_no):
         """คำนวณจำนวนสายต่อหน่วย"""
         try:
@@ -59,10 +77,10 @@ class WireBondingAnalyzer:
             return 1.0
     
     def remove_outliers(self, df):
-        """ลบ outliers จากข้อมูลแบบอัตโนมัติ"""
+        """ลบ outliers จากข้อมูลแบ่งตาม BOM และ Machine Model"""
         try:
             if df.empty:
-                return df
+                return df, {}
                 
             df = self.clean_model_names(df)
             
@@ -72,20 +90,27 @@ class WireBondingAnalyzer:
             if missing_cols:
                 raise KeyError(f"Missing required columns: {missing_cols}")
             
-            # แยกข้อมูลตามรุ่นเครื่อง
-            models = df['machine model'].unique()
+            # แบ่งข้อมูลตาม BOM และ Machine Model
+            grouped = df.groupby(['bom_no', 'machine model'])
             cleaned_data = []
+            outlier_info = {}
             
-            for model in models:
-                model_data = df[df['machine model'] == model].copy()
+            for (bom_no, model), group_data in grouped:
+                group_data = group_data.copy()
+                original_count = len(group_data)
                 
                 # ข้ามถ้าข้อมูลน้อยกว่า 15 จุด
-                if len(model_data) < 15:
-                    cleaned_data.append(model_data)
+                if len(group_data) < 15:
+                    cleaned_data.append(group_data)
+                    outlier_info[(bom_no, model)] = {
+                        'original_count': original_count,
+                        'removed_count': 0,
+                        'final_count': original_count
+                    }
                     continue
                 
                 # กระบวนการตัด Outlier แบบอัตโนมัติ
-                current_data = model_data
+                current_data = group_data
                 
                 for iteration in range(20):  # จำกัดจำนวนรอบ
                     # ใช้ Z-Score (±3σ)
@@ -113,13 +138,21 @@ class WireBondingAnalyzer:
                     current_data = iqr_filtered
                 
                 cleaned_data.append(current_data)
+                final_count = len(current_data)
+                
+                # เก็บข้อมูลการตัด outlier
+                outlier_info[(bom_no, model)] = {
+                    'original_count': original_count,
+                    'removed_count': original_count - final_count,
+                    'final_count': final_count
+                }
             
             result_df = pd.concat(cleaned_data) if cleaned_data else df
-            return result_df
+            return result_df, outlier_info
         
         except Exception as e:
             print(f"Error in remove_outliers: {e}")
-            return df
+            return df, {}
     
     def _has_outliers(self, series):
         """ตรวจสอบว่ายังมี Outlier หรือไม่"""
@@ -151,7 +184,7 @@ class WireBondingAnalyzer:
             # ลบแถวที่ไม่มีค่า UPH หรือ BOM_NO
             df = df.dropna(subset=['uph', 'bom_no'])
             
-            # ทำความสะอาดชื่อรุ่นเครื่อง (ไม่ลบ PLUS)
+            # ทำความสะอาดชื่อรุ่นเครื่อง (เวอร์ชันปรับปรุง)
             df = self.clean_model_names(df)
             
             self.wb_data = df
@@ -167,8 +200,8 @@ class WireBondingAnalyzer:
             if not self.preprocess_data():
                 return None
             
-            # ตัด Outlier
-            cleaned_data = self.remove_outliers(self.wb_data)
+            # ตัด Outlier และเก็บข้อมูลการตัด
+            cleaned_data, outlier_info = self.remove_outliers(self.wb_data)
             
             if cleaned_data.empty:
                 return None
@@ -180,7 +213,7 @@ class WireBondingAnalyzer:
             for (bom_no, model), group in grouped:
                 # คำนวณค่าเฉลี่ย UPH
                 mean_uph = group['uph'].mean()
-                std_uph = group['uph'].std()
+                # std_uph = group['uph'].std()  # ซ่อนการคำนวณ std_uph
                 count = len(group)
                 
                 # คำนวณ Wire Per Unit
@@ -193,16 +226,25 @@ class WireBondingAnalyzer:
                 operation = group['operation'].iloc[0] if 'operation' in group.columns else 'N/A'
                 optn_code = group['optn_code'].iloc[0] if 'optn_code' in group.columns else 'N/A'
                 
+                # ดึงข้อมูลการตัด outlier
+                outlier_data = outlier_info.get((bom_no, model), {
+                    'original_count': count,
+                    'removed_count': 0,
+                    'final_count': count
+                })
+                
                 results.append({
                     'BOM': bom_no,
                     'Model': model,
                     'Operation': operation,
                     'Optn_Code': optn_code,
                     'Wire Per Hour': round(mean_uph, 2),
-                    'Std_UPH': round(std_uph, 2),
+                    # 'Std_UPH': round(std_uph, 2),  # ซ่อนคอลัมน์ Std_UPH
                     'Wire_Per_Unit': round(wire_per_unit, 2),
                     'UPH': round(efficiency, 3),
-                    'Data_Points': count
+                    'Data_Points': count,
+                    'Original_Count': outlier_data['original_count'],
+                    'Outliers_Removed': outlier_data['removed_count']
                 })
             
             self.efficiency_df = pd.DataFrame(results)
@@ -283,6 +325,7 @@ class WireBondingAnalyzer:
             print(f"Error exporting to Excel: {e}")
             return False
 
+
 # ตัวอย่างการใช้งาน
 if __name__ == "__main__":
     analyzer = WireBondingAnalyzer()
@@ -290,7 +333,7 @@ if __name__ == "__main__":
     # โหลดข้อมูล
     data_loaded = analyzer.load_data(
         uph_path='./data/Data WB UTL1 Jan-May-25.xlsx',  # เปลี่ยนเป็น path ของคุณ
-        wire_data_path='./temp/Book6_Wire Data.xlsx'  # เปลี่ยนเป็น path ของคุณ
+        wire_data_path='./temp/Book6_Wire Data.xlsx'     # เปลี่ยนเป็น path ของคุณ
     )
     
     if data_loaded:
